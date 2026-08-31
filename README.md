@@ -1,13 +1,13 @@
 # Discord Reminder Bot
 
-A Discord bot that posts a recurring weekly agenda reminder and lets admins schedule one-off custom reminders.
+A Discord bot that posts the team agenda reminder on Monday and Tuesday at 5:00 PM UTC and also supports one-off custom reminders scheduled by administrators.
 
 > **Single-channel only:** the bot only ever posts to one hardcoded channel (set via `CHANNEL_ID_886_GENERAL`). It cannot be configured to post to multiple channels or servers without code changes.
 
 ## How it works
 
-- **Weekly reminder:** a background loop checks once every 24 hours whether the current UTC day is Tuesday, and if so posts the default agenda reminder message to the configured channel.
-- **Custom scheduled reminder:** server administrators can run `!sendreminder` in any channel to schedule a one-time reminder (default or custom message) for a specific future date/time. The bot sleeps until that time, then posts the message to the configured channel.
+- **Recurring reminder:** the bot runs daily at 17:00 UTC and posts the default agenda reminder only when the current day is Monday or Tuesday.
+- **Custom scheduled reminder:** server administrators can run `!sendreminder` in any channel to schedule a one-time reminder (default or custom message) for a specific future date/time. The bot waits until that time, then posts the message to the configured channel.
 
 ### Commands
 
@@ -15,22 +15,22 @@ A Discord bot that posts a recurring weekly agenda reminder and lets admins sche
 
 - Requires Administrator permission.
 - Date/time is interpreted as UTC.
-- If `custom message` is omitted, the default weekly agenda message is used.
+- If `custom message` is omitted, the default agenda message is used.
 - Must be a future date/time.
 
 **Examples:**
 
-```
+```bash
 !sendreminder 2026-09-15 09:00
 ```
-Schedules the default weekly agenda message for 2026-09-15 at 09:00 UTC.
+Schedules the default agenda reminder for 2026-09-15 at 09:00 UTC.
 
-```
+```bash
 !sendreminder 2026-09-15 09:00 Don't forget to submit your timesheets by Friday!
 ```
 Schedules a custom message for 2026-09-15 at 09:00 UTC.
 
-```
+```bash
 !sendreminder 2026-12-24 17:30 Reminder: office closes early today at 5:30pm UTC.
 ```
 Schedules a one-off holiday reminder.
@@ -65,3 +65,8 @@ Dependencies are managed with [uv](https://docs.astral.sh/uv/) (see `pyproject.t
    ```bash
    uv run reminder_bot.py
    ```
+
+## Notes
+
+- The recurring reminder is intentionally limited to Monday and Tuesday at 5:00 PM UTC.
+- The bot posts in a single configured channel and does not currently support multi-channel or multi-server deployment.
