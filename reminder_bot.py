@@ -84,26 +84,30 @@ async def manual_reminder(ctx, target_date: str, target_time: str, *, custom_mes
   try:
     target_dt = datetime.datetime.strptime(f"{target_date} {target_time}", "%Y-%m-%d %H:%M")
     now = datetime.datetime.utcnow()
-    
+
     delay = (target_dt - now).total_seconds()
-    
+
     if delay <= 0:
       await ctx.send("The specified time is in the past. Please choose a future date and hour.")
       return
-    
+
     # Use the provided custom message if available, otherwise fall back to the default agenda message
     message_to_send = custom_message if custom_message else REMINDER_MESSAGE
-    
-    await ctx.send(f"Reminder successfully scheduled for {target_dt} UTC!")
-    
+
+    confirmation = (
+        f"Reminder scheduled for {target_dt} UTC. "
+        f"I’ll post it in <#{CHANNEL_ID_886_GENERAL}> when the time arrives."
+    )
+    await ctx.send(confirmation)
+
     await asyncio.sleep(delay)
-    
+
     channel = bot.get_channel(CHANNEL_ID_886_GENERAL)
     if channel:
       await channel.send(message_to_send)
     else:
       await ctx.send(message_to_send)
-      
+
   except ValueError:
     await ctx.send("Invalid format! Please use: `!sendreminder YYYY-MM-DD HH:MM [Message]`")
 
