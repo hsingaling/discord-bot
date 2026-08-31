@@ -19,12 +19,14 @@ Format:
 2. Updates (<2min per) - Brief updates that may need quick input from the team(1 -2 questions) from the group.
 3. Discussion (<10min per) - Topics that require lengthy team input should go here."""
 
-@tasks.loop(time=datetime.time(hour=17, minute=0, tzinfo=datetime.timezone.utc))
+PST_TZ = datetime.timezone(datetime.timedelta(hours=-8))
+
+@tasks.loop(time=datetime.time(hour=17, minute=0, tzinfo=PST_TZ))
 async def send_weekly_reminder():
-  """Runs at 17:00 UTC every day and sends the agenda reminder only
+  """Runs at 17:00 PST every day and sends the agenda reminder only
   on Monday and Tuesday.
   """
-  today = datetime.datetime.now(datetime.timezone.utc)
+  today = datetime.datetime.now(PST_TZ)
   if today.weekday() in (0, 1):
     channel = bot.get_channel(CHANNEL_ID_886_GENERAL)
     if channel:
@@ -82,8 +84,8 @@ async def manual_reminder(ctx, target_date: str, target_time: str, *, custom_mes
   date and hour. Usage: !sendreminder YYYY-MM-DD HH:MM [Your custom message]
   """
   try:
-    target_dt = datetime.datetime.strptime(f"{target_date} {target_time}", "%Y-%m-%d %H:%M")
-    now = datetime.datetime.utcnow()
+    target_dt = datetime.datetime.strptime(f"{target_date} {target_time}", "%Y-%m-%d %H:%M").replace(tzinfo=PST_TZ)
+    now = datetime.datetime.now(PST_TZ)
 
     delay = (target_dt - now).total_seconds()
 
@@ -95,7 +97,7 @@ async def manual_reminder(ctx, target_date: str, target_time: str, *, custom_mes
     message_to_send = custom_message if custom_message else REMINDER_MESSAGE
 
     confirmation = (
-        f"Reminder scheduled for {target_dt} UTC. "
+        f"Reminder scheduled for {target_dt.strftime('%Y-%m-%d %H:%M')} PST. "
         f"I’ll post it in <#{CHANNEL_ID_886_GENERAL}> when the time arrives."
     )
     await ctx.send(confirmation)
