@@ -20,17 +20,31 @@ Format:
 3. Discussion (<10min per) - Topics that require lengthy team input should go here."""
 
 PST_TZ = datetime.timezone(datetime.timedelta(hours=-8))
+LAST_SENT_DATE = None
 
-@tasks.loop(time=datetime.time(hour=17, minute=0, tzinfo=PST_TZ))
+@tasks.loop(minutes=1)
 async def send_weekly_reminder():
-  """Runs at 17:00 PST every day and sends the agenda reminder only
-  on Monday and Tuesday.
+  """Checks once per minute and sends the reminder exactly once when the
+  current time is Monday/Tuesday at 17:00 PST.
   """
-  today = datetime.datetime.now(PST_TZ)
-  if today.weekday() in (0, 1):
-    channel = bot.get_channel(CHANNEL_ID_886_GENERAL)
-    if channel:
-      await channel.send(REMINDER_MESSAGE)
+  global LAST_SENT_DATE
+
+  now = datetime.datetime.now(PST_TZ)
+  if now.weekday() not in (0, 1):
+    LAST_SENT_DATE = None
+    return
+
+  if now.hour != 17 or now.minute != 0:
+    return
+
+  today_key = now.date().isoformat()
+  if LAST_SENT_DATE == today_key:
+    return
+
+  channel = bot.get_channel(CHANNEL_ID_886_GENERAL)
+  if channel:
+    await channel.send(REMINDER_MESSAGE)
+  LAST_SENT_DATE = today_key
 
 
 @send_weekly_reminder.before_loop
