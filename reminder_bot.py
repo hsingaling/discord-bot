@@ -1,7 +1,9 @@
 import datetime
 import os
 import asyncio
+from zoneinfo import ZoneInfo
 import discord
+from pymongo import MongoClient
 from discord.ext import commands, tasks
 
 intents = discord.Intents.default()
@@ -11,6 +13,7 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 
 CHANNEL_ID_886_GENERAL = int(os.environ.get("CHANNEL_ID_886_GENERAL", 0))
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
+MONGO_URI = os.environ.get("MONGO_URI")
 
 REMINDER_MESSAGE = """@everyone please add your update to the upcoming meeting [agenda](https://drive.google.com/drive/u/1/folders/1-w39d5_TnBgPrg7W0MVgJVj8bKEyByhM)
 
@@ -19,66 +22,86 @@ Format:
 2. Updates (<2min per) - Brief updates that may need quick input from the team(1 -2 questions) from the group.
 3. Discussion (<10min per) - Topics that require lengthy team input should go here."""
 
-PST_TZ = datetime.timezone(datetime.timedelta(hours=-8))
-LAST_SENT_DATE = None
+PST_TZ = ZoneInfo("America/Los_Angeles")
+
+if MONGO_URI:
+    mongo_client = MongoClient(MONGO_URI)
+    db = mongo_client["discord_bot"]
+    reminder_state = db["reminder_state"]
+else:
+    mongo_client = None
+    db = None
+    reminder_state = None
+
+
+def load_last_sent_date():
+  """Read the last reminder date from MongoDB, if configured."""
+  if reminder_state is None:
+    return None
+
+  record = reminder_state.find_one({"name": "last_sent_date"})
+  if record:
+    return record.get("value")
+  return None
+
+
+def save_last_sent_date(date_string):
+  """Persist the last reminder date to MongoDB."""
+  if reminder_state is None:
+    return
+
+  reminder_state.update_one(
+      {"name": "last_sent_date"},
+      {"$set": {"value": date_string}},
+      upsert=True,
+  )
+
+
+def clear_last_sent_date():
+  """Clear the stored reminder date so a new reminder can fire later."""
+  if reminder_state is None:
+    return
+
+  reminder_state.delete_one({"name": "last_sent_date"})
+
+
+LAST_SENT_DATE = load_last_sent_date()
 
 @tasks.loop(minutes=1)
 async def send_weekly_reminder():
-  """Checks once per minute and sends the reminder exactly once when the
-  current time is Monday/Tuesday at 17:00 PST.
-  """
+  """Send the weekly reminder once per eligible day at 5:00 PM Pacific time."""
   global LAST_SENT_DATE
 
   now = datetime.datetime.now(PST_TZ)
-  if now.weekday() not in (0, 1):
-    LAST_SENT_DATE = None
-    return
-
-  if now.hour != 17 or now.minute != 0:
-    return
-
   today_key = now.date().isoformat()
+
+  if LAST_SENT_DATE and LAST_SENT_DATE < today_key:
+    clear_last_sent_date()
+    LAST_SENT_DATE = None
+
+  if now.weekday() not in (0, 1):
+    if LAST_SENT_DATE is not None:
+      clear_last_sent_date()
+      LAST_SENT_DATE = None
+    return
+
+  if now.hour != 17 or now.minute != 30:
+    return
+
   if LAST_SENT_DATE == today_key:
     return
 
   channel = bot.get_channel(CHANNEL_ID_886_GENERAL)
   if channel:
     await channel.send(REMINDER_MESSAGE)
+
   LAST_SENT_DATE = today_key
+  save_last_sent_date(today_key)
 
 
 @send_weekly_reminder.before_loop
 async def before_reminder():
-  """Pauses exec# Discord Weekly Reminder Bot
-
-A lightweight Discord bot that automatically sends a weekly agenda reminder every Tuesday, with support for scheduled custom reminders. **Please note that this bot currently applies exclusively to the general channel (`CHANNEL_ID_886_GENERAL`)[cite: 1].**
-
----
-
-## Features
-
-- **Automated Weekly Reminders:** Runs a background loop to post the agenda reminder automatically every Tuesday[cite: 1].
-- **Scheduled Custom Reminders:** Allows administrators to schedule a reminder for a specific date and time using a chat command[cite: 1].
-- **Environment Variable Configuration:** Securely pulls the bot token and channel ID from environment variables[cite: 1].
-
----
-
-## Environment Variables
-
-To run this bot, you must configure the following environment variables (via your hosting provider like Render, or a local `.env` file)[cite: 1]:
-
-- `BOT_TOKEN`: Your Discord bot token from the Discord Developer Portal[cite: 1].
-- `CHANNEL_ID_886_GENERAL`: The numeric ID of the general Discord text channel where reminders will be sent[cite: 1].
-
----
-
-## Setup & Running Locally
-
-1. **Install Dependencies:**
-   ```bash
-   pip install discord.pyution until the bot is fully logged in and ready
-  before starting the background loop.
-  """
+  """Wait until the bot is fully connected before starting the reminder loop."""
   await bot.wait_until_ready()
 
 
