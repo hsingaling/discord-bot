@@ -15,12 +15,7 @@ CHANNEL_ID_886_GENERAL = int(os.environ.get("CHANNEL_ID_886_GENERAL", 0))
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
 MONGO_URI = os.environ.get("MONGO_URI")
 
-REMINDER_MESSAGE = """@everyone please add your update to the upcoming meeting [agenda](https://drive.google.com/drive/u/1/folders/1-w39d5_TnBgPrg7W0MVgJVj8bKEyByhM)
-
-Format:
-1. FYI - Ready only. Includes status update or completed tasks that are easy to understand. 
-2. Updates (<2min per) - Brief updates that may need quick input from the team(1 -2 questions) from the group.
-3. Discussion (<10min per) - Topics that require lengthy team input should go here."""
+REMINDER_MESSAGE = """@everyone Please add your weekly update to the latest meeting agenda or status update doc [here](https://drive.google.com/drive/u/1/folders/1-w39d5_TnBgPrg7W0MVgJVj8bKEyByhM)"""
 
 PST_TZ = ZoneInfo("America/Los_Angeles")
 
